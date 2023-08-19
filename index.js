@@ -48,6 +48,40 @@ app.get("/user", (request, response) => {
   });
 });
 
+app.get("/user/:id", (request, response) => {
+  const id = request.params.id;
+  mysqlCon.query(
+    `
+    SELECT u.id, u.name, u.address,(
+        (SELECT sum(t.amount) - 
+           (SELECT sum(t.amount)
+        FROM transaction t
+        WHERE t.type = "expense")
+        FROM transaction t
+        WHERE t.type = "income") 
+    ) as balance, (
+    (select sum(t.amount)
+    from transaction t 
+    where t.type = "expense") 
+    ) as expense
+    from user as u, transaction as t 
+    WHERE u.id = ${id}
+    GROUP by u.id
+    `,
+    (err, result, fields) => {
+      if (err) {
+        console.error(err);
+        response.status(500).json(commonResponse(null, "response error"));
+        response.end();
+        return;
+      }
+      console.log("user successfully connected", result);
+      response.status(200).json(commonResponse(result, null));
+      response.end();
+    }
+  );
+});
+
 app.post("/transaction", (request, response) => {
   const { type, amount, user_id } = request.body;
   console.log(request.body);
