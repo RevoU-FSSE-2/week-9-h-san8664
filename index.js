@@ -49,12 +49,14 @@ app.get("/user", (request, response) => {
 });
 
 app.post("/transaction", (request, response) => {
-    const {type, amount, user_id} = request.body
-    console.log(request.body); 
-    mysqlCon.query( `INSERT INTO transaction
+  const { type, amount, user_id } = request.body;
+  console.log(request.body);
+  mysqlCon.query(
+    `INSERT INTO transaction
     (user_id, type, amount)
     VALUES(${user_id}, '${type}', ${amount});
-    `, (err, result, fields) => {
+    `,
+    (err, result, fields) => {
       if (err) {
         console.error(err);
         response.status(500).json(commonResponse(null, "response error"));
@@ -64,9 +66,37 @@ app.post("/transaction", (request, response) => {
       console.log("user successfully connected", result);
       response.status(200).json(commonResponse(result.insertId, null));
       response.end();
-    });
-  });
+    }
+  );
+});
 
+app.put("/transactions/:id", (request, response) => {
+  const id = +request.params.id;
+  const { type, amount, user_id } = request.body;
+  const sql =
+    "UPDATE tb_transaction SET type = ?, amount = ?, user_id = ? WHERE id = ?";
+  db.query(sql, [type, amount, user_id, id], (err, result) => {
+    if (err) {
+      console.error("Error updating transaction:", err);
+      response.status(500).send("Error updating transaction");
+      return;
+    }
+    res.json({ id });
+  });
+});
+
+app.delete("/transactions/:id", (request, response) => {
+  const id = +req.params.id;
+  const sql = "DELETE FROM tb_transaction WHERE id = ?";
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error("Error deleting transaction:", err);
+      res.status(500).send("Error deleting transaction");
+      return;
+    }
+    res.json({ id: id });
+  });
+});
 
 app.listen(3302, () => {
   console.log("running in 3302");
