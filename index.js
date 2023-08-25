@@ -27,79 +27,69 @@ const mysqlCon = mysql.createConnection({
 });
 
 mysqlCon.connect((err) => {
-  if (err) throw err;
+  if (err) {
+    console.error("MySQL connection error:", err);
+    throw err;
+  }
 
-  console.log("mysql successfully connected");
+  console.log("MySQL successfully connected");
 });
 
 app.use(bodyParser.json());
 
 app.get("/user", (request, response) => {
-  mysqlCon.query("select * from user", (err, result, fields) => {
+  mysqlCon.query("SELECT * FROM user", (err, result, fields) => {
     if (err) {
-      console.error(err);
+      console.error("Error fetching users:", err);
       response.status(500).json(commonResponse(null, "response error"));
-      response.end();
       return;
     }
-    console.log("user successfully connected", result);
+    console.log("Users successfully fetched:", result);
     response.status(200).json(commonResponse(result, null));
-    response.end();
   });
 });
 
 app.get("/user/:id", (request, response) => {
   const id = request.params.id;
   mysqlCon.query(
-    `
-    SELECT u.id, u.name, u.address,(
-        (SELECT sum(t.amount) - 
-           (SELECT sum(t.amount)
-        FROM transaction t
-        WHERE t.type = "expense")
-        FROM transaction t
-        WHERE t.type = "income") 
-    ) as balance, (
-    (select sum(t.amount)
-    from transaction t 
-    where t.type = "expense") 
-    ) as expense
-    from user as u, transaction as t 
+    `SELECT u.id, u.name, u.address, 
+    (SELECT SUM(t.amount) - 
+     (SELECT SUM(t.amount)
+      FROM transaction t
+      WHERE t.type = "expense")
+     FROM transaction t
+     WHERE t.type = "income") as balance, 
+    (SELECT SUM(t.amount)
+     FROM transaction t 
+     WHERE t.type = "expense") as expense
+    FROM user AS u, transaction AS t 
     WHERE u.id = ${id}
-    GROUP by u.id
-    `,
+    GROUP BY u.id`,
     (err, result, fields) => {
       if (err) {
-        console.error(err);
+        console.error("Error fetching user:", err);
         response.status(500).json(commonResponse(null, "response error"));
-        response.end();
         return;
       }
-      console.log("user successfully connected", result);
+      console.log("User successfully fetched:", result);
       response.status(200).json(commonResponse(result, null));
-      response.end();
     }
   );
 });
 
 app.post("/transaction", (request, response) => {
   const { type, amount, user_id } = request.body;
-  console.log(request.body);
   mysqlCon.query(
-    `INSERT INTO transaction
-    (user_id, type, amount)
-    VALUES(${user_id}, '${type}', ${amount});
-    `,
+    `INSERT INTO transaction (user_id, type, amount)
+     VALUES(${user_id}, '${type}', ${amount})`,
     (err, result, fields) => {
       if (err) {
-        console.error(err);
+        console.error("Error adding transaction:", err);
         response.status(500).json(commonResponse(null, "response error"));
-        response.end();
         return;
       }
-      console.log("user successfully connected", result);
+      console.log("Transaction added successfully:", result);
       response.status(200).json(commonResponse(result.insertId, null));
-      response.end();
     }
   );
 });
@@ -108,30 +98,31 @@ app.put("/transactions/:id", (request, response) => {
   const id = +request.params.id;
   const { type, amount, user_id } = request.body;
   const sql =
-    "UPDATE tb_transaction SET type = ?, amount = ?, user_id = ? WHERE id = ?";
-  db.query(sql, [type, amount, user_id, id], (err, result) => {
+    "UPDATE transaction SET type = ?, amount = ?, user_id = ? WHERE id = ?";
+  mysqlCon.query(sql, [type, amount, user_id, id], (err, result) => {
     if (err) {
       console.error("Error updating transaction:", err);
       response.status(500).send("Error updating transaction");
       return;
     }
-    res.json({ id });
+    response.json({ id });
   });
 });
 
 app.delete("/transactions/:id", (request, response) => {
-  const id = +req.params.id;
-  const sql = "DELETE FROM tb_transaction WHERE id = ?";
-  db.query(sql, [id], (err, result) => {
+  const id = +request.params.id;
+  const sql = "DELETE FROM transaction WHERE id = ?";
+  mysqlCon.query(sql, [id], (err, result) => {
     if (err) {
       console.error("Error deleting transaction:", err);
-      res.status(500).send("Error deleting transaction");
+      response.status(500).send("Error deleting transaction");
       return;
     }
-    res.json({ id: id });
+    response.json({ id: id });
   });
 });
 
-app.listen(3302, () => {
-  console.log("running in 3302");
+const PORT = process.env.PORT || 3302;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
